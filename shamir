@@ -1,0 +1,107 @@
+import java.util.*;
+
+public class ShamirSecretSharing {
+    static final int PRIME = 2089;
+
+    static int modInverse(int a, int p) {
+        a = ((a % p) + p) % p;
+        for (int x = 1; x < p; x++) {
+            if ((a * x) % p == 1) return x;
+        }
+        return 1;
+    }
+
+    static int lagrangeInterpolation(int x, int[] x_s, int[] y_s, int p) {
+        int total = 0;
+        for (int i = 0; i < x_s.length; i++) {
+            int xi = x_s[i], yi = y_s[i];
+            int li = 1;
+            for (int j = 0; j < x_s.length; j++) {
+                if (i != j) {
+                    int xj = x_s[j];
+                    int numerator = ((x - xj) % p + p) % p;
+                    int denominator = ((xi - xj) % p + p) % p;
+                    li *= numerator * modInverse(denominator, p);
+                    li %= p;
+                }
+            }
+            total += (yi * li) % p;
+            total %= p;
+        }
+        return (total + p) % p;
+    }
+
+    static List<List<int[]>> kCombinations(List<int[]> arr, int k) {
+        List<List<int[]>> result = new ArrayList<>();
+        backtrack(arr, k, 0, new ArrayList<>(), result);
+        return result;
+    }
+
+    static void backtrack(List<int[]> arr, int k, int start, List<int[]> temp, List<List<int[]>> res) {
+        if (temp.size() == k) {
+            res.add(new ArrayList<>(temp));
+            return;
+        }
+        for (int i = start; i < arr.size(); i++) {
+            temp.add(arr.get(i));
+            backtrack(arr, k, i + 1, temp, res);
+            temp.remove(temp.size() - 1);
+        }
+    }
+
+    public static void main(String[] args) {
+        List<int[]> shares = Arrays.asList(
+            new int[]{1, 166},
+            new int[]{2, 232},
+            new int[]{3, 304},
+            new int[]{4, 1010}, // wrong
+            new int[]{5, 490},
+            new int[]{6, 614}
+        );
+
+        int k = 3;
+        Map<Integer, List<List<int[]>>> secretMap = new HashMap<>();
+
+        for (List<int[]> combo : kCombinations(shares, k)) {
+            int[] x_s = combo.stream().mapToInt(p -> p[0]).toArray();
+            int[] y_s = combo.stream().mapToInt(p -> p[1]).toArray();
+            int secret = lagrangeInterpolation(0, x_s, y_s, PRIME);
+
+            secretMap.computeIfAbsent(secret, x -> new ArrayList<>()).add(combo);
+        }
+
+        int correctSecret = -1;
+        List<List<int[]>> maxCombos = new ArrayList<>();
+        for (Map.Entry<Integer, List<List<int[]>>> entry : secretMap.entrySet()) {
+            if (entry.getValue().size() > maxCombos.size()) {
+                correctSecret = entry.getKey();
+                maxCombos = entry.getValue();
+            }
+        }
+
+        Set<String> validShares = new HashSet<>();
+        for (List<int[]> combo : maxCombos) {
+            for (int[] share : combo) {
+                validShares.add(Arrays.toString(share));
+            }
+        }
+
+        Set<String> allShares = new HashSet<>();
+        for (int[] s : shares) {
+            allShares.add(Arrays.toString(s));
+        }
+
+        allShares.removeAll(validShares);
+
+        System.out.println("Correct Secret: " + correctSecret);
+        System.out.println("\nValid Combinations:");
+        for (List<int[]> combo : maxCombos) {
+            System.out.println(combo.stream().map(Arrays::toString).toList());
+        }
+
+        System.out.println("\nInvalid Shares:");
+        for (String wrong : allShares) {
+            System.out.println(wrong);
+        }
+    }
+}
